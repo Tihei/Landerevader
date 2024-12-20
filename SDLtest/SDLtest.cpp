@@ -46,14 +46,19 @@ void initWorldState(Worldstate & ws)
 int main(int argc, char* argv[])
 {
     SDL_Init(SDL_INIT_EVERYTHING);
-    bool map[1280][640];
-    SDL_Window* window = SDL_CreateWindow("Game",100,100,1280,640,SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
+    
+
+    
+    const int window_width = 1280;  //640,480 old //1280,640 
+    const int window_height = 640;
+    bool map[window_width][window_height];
+
+    SDL_Window* window = SDL_CreateWindow("Game",100,100,window_width,window_height,SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
     SDL_Renderer* renderer = SDL_CreateRenderer(window,-1, SDL_RENDERER_PRESENTVSYNC);
+    SDL_Rect screen = { 0,0,window_width,window_height };
 
 
-
-    int window_width = 1280;  //640,480 old
-    int window_height = 640;
+   
 
     SDL_FRect rect = {640,560,80,80};
     SDL_Rect ball = { 100,100,50,50 };
@@ -75,6 +80,9 @@ int main(int argc, char* argv[])
     float rect_vel_x = 0;
     float rect_vel_y = 0;
     float accelerationFactor = 1;
+    int killcounter = 50;
+    int despawncounter = 20;
+    bool killed = false,despawned = false;
 
     SDL_Surface * lander_image = IMG_Load("img/apollo_lander.png");
     SDL_Surface * lander_engine_on = IMG_Load("img/apollo_lander_engine_on.png");
@@ -244,14 +252,21 @@ int main(int argc, char* argv[])
 
 
 
-        if (    ( (ball.y > rect.y) && (ball.y < rect.y + rect.h)  ) && (  (ball.x > rect.x) && (ball.x < (rect.x + rect.w) ) )     )
+        if (    ( (ball.y > rect.y) && (ball.y < rect.y + rect.h)  ) && (  (ball.x > rect.x) && (ball.x < (rect.x + rect.w) ) ) || killed      )
         {
             accelerationFactor = 0;
             ball_vel_x = 0;
             ball_vel_y = 0;
-            lander = SDL_CreateTextureFromSurface(renderer, explosion);
-            missile = SDL_CreateTextureFromSurface(renderer, explosion);
             accelerationFactor = 0;
+            killcounter --;
+            killed = 1;
+            if (killcounter < 1)
+            {
+                despawncounter--;
+                rect_vel_x = 0;
+                rect_vel_x = 0;
+            }
+            if (despawncounter == 0) despawned=1;
 
             //Kill condition
 
@@ -450,40 +465,65 @@ int main(int argc, char* argv[])
 
         }
 
-
-        //landerrendering
-        SDL_Rect lander_rect = { (int)rect.x , (int)rect.y, (int)rect.w, (int)rect.h };
-        SDL_RenderCopy(renderer, lander, NULL, &lander_rect);
+       
 
         //missilerendering
-       
-        std::cout << "Vel_Y :" << ball_vel_y << " , Vel_X :" << ball_vel_x << std::endl;
+
 
         SDL_Rect Missle_texture = { missle_texture_offset_x, missle_texture_offset_y, 50, 50 };
-       
+
+        if (killed)
+        {
+            lander = SDL_CreateTextureFromSurface(renderer, explosion);
+            missile = SDL_CreateTextureFromSurface(renderer, explosion);
+        }
+
+        if (despawned)
+        {
+            lander = NULL;
+            missile = NULL;
+            SDL_Surface * gameover = IMG_Load("img/gameover.jpg");
+            SDL_RenderCopy(renderer, SDL_CreateTextureFromSurface(renderer, gameover), NULL, &screen );
+        }
+        else
+        {
+            SDL_Rect lander_rect = { (int)rect.x , (int)rect.y, (int)rect.w, (int)rect.h };
+            SDL_RenderCopy(renderer, lander, NULL, &lander_rect);
 
 
-        SDL_RenderCopy(renderer, missile, &Missle_texture , &ball);
-
-        //fuelrendering
-        //float tmp = modulo(deltav_max, deltav_player );
-        int fuel_indicator = 1 + 50 * (deltav_player / deltav_max);
 
 
-        SDL_Rect fuel_rect = { 50, 600, (5 * fuel_indicator)  , 20 };
-        
-        std::cout << "fi: " << fuel_indicator << " | dv: " << deltav_player << std::endl;
 
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 0);
+            SDL_RenderCopy(renderer, missile, &Missle_texture, &ball);
 
-        if (fuel_indicator < 10) { SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0); }
+            //fuelrendering
+            //float tmp = modulo(deltav_max, deltav_player );
 
-        SDL_RenderFillRect(renderer, &fuel_rect);
+            //length of fuel bar is calculated
+            int fuel_indicator = 1 + 50 * (deltav_player / deltav_max);
+
+            SDL_Rect fuel_rect = { 50, 600, (5 * fuel_indicator)  , 20 };
+
+            std::cout << "Vel_Y :" << ball_vel_y << " , Vel_X :" << ball_vel_x << std::endl;
+            std::cout << "fi: " << fuel_indicator << " | dv: " << deltav_player << " | killed " << killed << std::endl;
+            std::cout << "killcounter: " << killcounter << " | despawncounter: " << despawncounter << std::endl;
 
 
-        SDL_SetRenderDrawColor(renderer, 0 , 0 , 0, 255);
 
 
+
+            //renderer Fuelindicator
+
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 0);
+
+            if (fuel_indicator < 10) { SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0); }
+
+            SDL_RenderFillRect(renderer, &fuel_rect);
+
+
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+
+        }
         SDL_RenderPresent(renderer);
 
         SDL_Delay(16);
